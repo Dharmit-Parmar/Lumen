@@ -1,4 +1,5 @@
 import CoreMedia
+import CoreImage
 import CoreVideo
 import Foundation
 import VideoToolbox
@@ -13,9 +14,24 @@ final class H264StreamReceiver {
     private var formatDescription: CMVideoFormatDescription?
     private var configured = false
     private var sawKeyframe = false
+    private var rotation = 0
+    private var mirror = false
+    private var decodeStartedAt: UInt64 = 0
+    private var receivedFrameCount = 0
+    private var decodedFrameCount = 0
+    private let outputContext = CIContext()
+    private var outputPool: CVPixelBufferPool?
 
     init(frameHandler: @escaping (CVPixelBuffer?) -> Void) {
         self.frameHandler = frameHandler
+        let poolAttributes = [kCVPixelBufferPoolMinimumBufferCountKey as String: 2]
+        let bufferAttributes: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            kCVPixelBufferWidthKey as String: 1280,
+            kCVPixelBufferHeightKey as String: 720,
+            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
+        ]
+        CVPixelBufferPoolCreate(kCFAllocatorDefault, poolAttributes as CFDictionary, bufferAttributes as CFDictionary, &outputPool)
     }
 
     func start() {
@@ -56,6 +72,8 @@ final class H264StreamReceiver {
                 guard running else { stateLock.unlock(); Darwin.close(descriptor); return }
                 socket = descriptor
                 stateLock.unlock()
+                var timeout = timeval(tv_sec: 1, tv_usec: 0)
+                _ = setsockopt(descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
                 try receiveMessages(descriptor)
                 backoff = 0.25
             } catch {
@@ -64,7 +82,15 @@ final class H264StreamReceiver {
             closeCurrentSocket()
             resetDecoder()
             frameHandler(nil)
-            if isRunning { Thread.sleep(forTimeInterval: backoff); backoff = min(backoff * 2, 3) }
+            if isRunning {
+                var remaining = backoff
+                while isRunning && remaining > 0 {
+                    let pause = min(remaining, 0.05)
+                    Thread.sleep(forTimeInterval: pause)
+                    remaining -= pause
+                }
+                backoff = min(backoff * 2, 3)
+            }
         }
     }
 
@@ -73,6 +99,9 @@ final class H264StreamReceiver {
         guard descriptor >= 0 else { throw streamError("socket failed") }
         var noDelay: Int32 = 1
         _ = setsockopt(descriptor, IPPROTO_TCP, TCP_NODELAY, &noDelay, socklen_t(MemoryLayout<Int32>.size))
+        var bufferSize: Int32 = 64 * 1024
+        _ = setsockopt(descriptor, SOL_SOCKET, SO_SNDBUF, &bufferSize, socklen_t(MemoryLayout<Int32>.size))
+        _ = setsockopt(descriptor, SOL_SOCKET, SO_RCVBUF, &bufferSize, socklen_t(MemoryLayout<Int32>.size))
 
         var address = sockaddr_in()
         address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -115,6 +144,10 @@ final class H264StreamReceiver {
                 lastTimestamp = timestamp
                 if type == 2 { sawKeyframe = true }
                 guard sawKeyframe else { throw streamError("delta frame arrived before keyframe") }
+                receivedFrameCount += 1
+                if receivedFrameCount % 30 == 0 {
+                    print("LumenTiming: received frame \(receivedFrameCount), \(length) bytes at host uptime \(DispatchTime.now().uptimeNanoseconds)")
+                }
                 try decode(payload, timestampUs: timestamp)
             default:
                 throw streamError("unknown message type")
@@ -127,12 +160,12 @@ final class H264StreamReceiver {
         let width = integer(payload[1..<3])
         let height = integer(payload[3..<5])
         let fps = integer(payload[5..<7])
-        let rotation = integer(payload[7..<9])
+        let configuredRotation = Int(integer(payload[7..<9]))
         let mirror = payload[9]
         let spsLength = Int(integer(payload[10..<12]))
         let ppsOffset = 12 + spsLength
         guard width == 1280, height == 720, fps > 0,
-              [0, 90, 180, 270].contains(rotation), mirror <= 1,
+              [0, 90, 180, 270].contains(configuredRotation), mirror <= 1,
               spsLength > 0, ppsOffset + 2 <= payload.count else {
             throw streamError("unsupported dimensions or incomplete video config")
         }
@@ -164,7 +197,9 @@ final class H264StreamReceiver {
         guard status == noErr, let description else { throw streamError("cannot create H.264 format (\(status))") }
         resetDecoder()
         let attributes: [String: Any] = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+            kCVPixelBufferWidthKey as String: width,
+            kCVPixelBufferHeightKey as String: height,
             kCVPixelBufferIOSurfacePropertiesKey as String: [:]
         ]
         var callback = VTDecompressionOutputCallbackRecord(
@@ -185,11 +220,14 @@ final class H264StreamReceiver {
         decoder = session
         configured = true
         sawKeyframe = false
-        print("Lumen stream: configured \(width)x\(height) at \(fps) fps, rotation \(rotation)")
+        rotation = configuredRotation
+        self.mirror = mirror == 1
+        print("Lumen stream: configured \(width)x\(height) at \(fps) fps, rotation \(rotation), mirror \(self.mirror)")
     }
 
     private func decode(_ annexB: Data, timestampUs: UInt64) throws {
         guard let decoder, let formatDescription else { throw streamError("decoder is not configured") }
+        decodeStartedAt = DispatchTime.now().uptimeNanoseconds
         let units = annexBUnits(annexB)
         guard !units.isEmpty else { throw streamError("empty H.264 access unit") }
         var sample = Data()
@@ -240,7 +278,7 @@ final class H264StreamReceiver {
         let decodeStatus = VTDecompressionSessionDecodeFrame(
             decoder,
             sampleBuffer: sampleBuffer,
-            flags: [._EnableAsynchronousDecompression, ._1xRealTimePlayback],
+            flags: [._1xRealTimePlayback],
             frameRefcon: nil,
             infoFlagsOut: &flags
         )
@@ -248,7 +286,41 @@ final class H264StreamReceiver {
     }
 
     fileprivate func deliver(_ pixelBuffer: CVPixelBuffer) {
-        frameHandler(pixelBuffer)
+        decodedFrameCount += 1
+        if decodedFrameCount % 30 == 0 {
+            let elapsed = (DispatchTime.now().uptimeNanoseconds - decodeStartedAt) / 1_000
+            print("LumenTiming: decoder output callback after \(elapsed)us")
+        }
+        if rotation == 0 && !mirror {
+            frameHandler(pixelBuffer)
+            return
+        }
+        guard let outputPool else { return }
+        var output: CVPixelBuffer?
+        guard CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, outputPool, &output) == kCVReturnSuccess,
+              let output else { return }
+
+        let exifOrientation: Int32 = switch rotation {
+        case 90: 6
+        case 180: 3
+        case 270: 8
+        default: 1
+        }
+        var image = CIImage(cvPixelBuffer: pixelBuffer).oriented(forExifOrientation: exifOrientation)
+        var extent = image.extent
+        image = image.transformed(by: CGAffineTransform(translationX: -extent.minX, y: -extent.minY))
+        extent = image.extent
+        if mirror {
+            image = image.transformed(by: CGAffineTransform(translationX: extent.width, y: 0).scaledBy(x: -1, y: 1))
+        }
+        let scale = min(1280 / image.extent.width, 720 / image.extent.height)
+        image = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        extent = image.extent
+        let bounds = CGRect(x: 0, y: 0, width: 1280, height: 720)
+        image = image.transformed(by: CGAffineTransform(translationX: bounds.midX - extent.midX, y: bounds.midY - extent.midY))
+        image = image.composited(over: CIImage(color: .black).cropped(to: bounds))
+        outputContext.render(image, to: output, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
+        frameHandler(output)
     }
 
     private func resetDecoder() {
@@ -260,6 +332,8 @@ final class H264StreamReceiver {
         formatDescription = nil
         configured = false
         sawKeyframe = false
+        rotation = 0
+        mirror = false
     }
 
     private func closeCurrentSocket() {

@@ -15,7 +15,7 @@ I have parsed the provided project idea and transformed it into a structured **G
 |-------|-------------|------|
 | **Phase 0** | Setup | Setup dev environment (Xcode, Android Studio, ADB) and verify phone debugging. |
 | **Phase 0.5** | Viability check | Create a dummy Mac extension, check Apple ID signing constraints, and verify deployment via `systemextensionsctl`. |
-| **Phase 1** | Mac Camera Extension | Prove the Mac side end-to-end with a placeholder "No phone connected" frame. |
+| **Phase 1** | Mac Camera Extension | Verify live phone frames through the installed Mac camera extension. |
 | **Phase 2** | Android camera app | Create the Android Kotlin app capable of showing a preview and selecting lenses. |
 | **Phase 3** | Encode and serve | Encode H.264 stream and serve over a TCP socket. |
 | **Phase 4** | Mac receive & decode | Connect the Mac extension to the Android server, decode the stream, and expose frames. |
@@ -23,10 +23,6 @@ I have parsed the provided project idea and transformed it into a structured **G
 | **Phase 6** | Robustness | Handle disconnects, screen locks, and app restarts gracefully. |
 | **Phase 7** | Measure | Benchmark end-to-end latency and finalize setup docs. |
 
-## 🚀 Readiness Status
-1. **`.planning/PROJECT.md`** - Created (Project architecture & context).
-2. **`.planning/ROADMAP.md`** - Created (All 8 phases populated).
-3. **`.planning/STATE.md`** - Created (Project initialized).
-4. **`PLAN.md` files** - Created detailed action steps for Phase 0, Phase 0.5, and Phase 1.
+## 🚀 Current Readiness
 
-The workspace is fully initialized for execution! We can begin with Phase 0 whenever you are ready.
+The project has progressed beyond setup. Phase status and outstanding work are tracked in [`.planning/ROADMAP.md`](.planning/ROADMAP.md) and [`.planning/STATE.md`](.planning/STATE.md). Android capture/encoding and the Mac receive/decode path are implemented. Xcode and a signing identity are still required to install the system extension; device checks are also pending while the phone is unavailable.

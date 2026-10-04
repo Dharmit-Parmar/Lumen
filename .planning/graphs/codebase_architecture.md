@@ -69,7 +69,7 @@ Contains the standard Gradle-based Android project.
 ### `CameraExtension/`
 The CoreMediaIO System Extension that acts as the virtual camera driver on macOS.
 - **`H264StreamReceiver.swift`**: The TCP client. It connects to the Android phone (via `adb forward`), parses the `STREAM_PROTOCOL.md` headers, extracts the H.264 NAL units, and decodes them natively using `VTDecompressionSession`.
-- **`ExtensionStreamSource.swift`**: Receives decoded `CVPixelBuffer` frames from the receiver and pushes them to macOS. If no phone is connected, it generates a custom placeholder frame using CoreGraphics.
+- **`ExtensionStreamSource.swift`**: Receives decoded `CVPixelBuffer` frames from the receiver and pushes them to macOS when available.
 
 ### `MacApp/`
 The standard macOS `.app` bundle used to install the extension.

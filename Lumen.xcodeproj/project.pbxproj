@@ -13,6 +13,7 @@
 		4A7A9C3B4DF43DEB7C4C94C7 /* ExtensionDeviceSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = D495BA43ED7196473F83D8DD /* ExtensionDeviceSource.swift */; };
 		730C9D62DEF0E574AF9A854A /* ExtensionProviderSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31E447B6FE01435E5E0A4D3 /* ExtensionProviderSource.swift */; };
 		AEFE249E09968A01D1C2BB5D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014BA7638D36AC09BA380F3C /* AppDelegate.swift */; };
+		AEFE249E09968A01D1C2BB5E /* H264StreamReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AA61F1A9A74DB4AF874B12 /* H264StreamReceiver.swift */; };
 		B3B301F0857C025EABF43CC5 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B396272A7CCBEBD947457BD /* main.swift */; };
 /* End PBXBuildFile section */
 
@@ -185,6 +186,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AEFE249E09968A01D1C2BB5E /* H264StreamReceiver.swift in Sources */,
 				AEFE249E09968A01D1C2BB5D /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

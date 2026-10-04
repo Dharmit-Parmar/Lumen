@@ -47,7 +47,7 @@ Use Annex-B access units, with raw SPS/PPS NAL units in the config message. The 
 4. **Frame dropping, done safely:**
    - Mac: decode every frame, but only display the newest decoded frame.
    - Phone: if the socket is backed up, drop frames until the next keyframe and request one early. Never drop a single P-frame.
-5. **No-signal placeholder:** when there is no video, output a "No phone connected" frame so apps never see a frozen or black camera.
+5. **No synthetic video:** do not output a generated test image when there is no phone frame; resume output when real decoded frames arrive.
 6. **Orientation:** rotation and mirror come from the config message. MediaCodec's input surface does not rotate for you. Rotate on the Mac, or lock the phone to landscape for the MVP.
 
 ## 5. Latency settings (from day one)
@@ -115,14 +115,14 @@ scrcpy 2.2+ can already stream an Android camera over adb with H.264, lens selec
 
 **Done when:** you know for certain whether the extension route works on your setup.
 
-### Phase 1: Mac Camera Extension with test picture
+### Phase 1: Mac Camera Extension with live phone video
 
 1. Move the built host app to /Applications and run it.
 2. Click install, approve in System Settings, Privacy and Security.
 3. Open Photo Booth and pick your virtual camera.
-4. Replace the template pattern with your own "No phone connected" frame.
+4. Connect the phone and verify its live camera feed in the virtual camera.
 
-**Done when:** the placeholder frame shows in Photo Booth and QuickTime.
+**Done when:** live phone video shows in Photo Booth and QuickTime.
 
 ### Phase 2: Android camera app
 
@@ -150,7 +150,7 @@ scrcpy 2.2+ can already stream an Android camera over adb with H.264, lens selec
 2. Parse messages, build a `CMVideoFormatDescription` from SPS/PPS.
 3. Decode with VideoToolbox in real-time mode, output NV12.
 4. Keep only the newest decoded frame and send it to the stream with proper timing.
-5. Show the placeholder when there is no connection or no config within about 1 second.
+5. Do not emit synthetic frames when there is no connection or no decoded phone video.
 6. Add the network client entitlement. If localhost is blocked, switch to the host-app-owned connection design.
 
 **Done when:** phone video appears in Photo Booth.
@@ -166,7 +166,7 @@ scrcpy 2.2+ can already stream an Android camera over adb with H.264, lens selec
 
 ### Phase 6: Robustness
 
-1. Unplug and replug the cable while streaming. No crash, placeholder shown, auto reconnect.
+1. Unplug and replug the cable while streaming. No crash; resume video after reconnect.
 2. Start and stop the camera in apps repeatedly.
 3. Kill and restart the Android app. Restart adb. Both should recover.
 4. Handle phone screen lock, camera taken by another app, and permission denied.

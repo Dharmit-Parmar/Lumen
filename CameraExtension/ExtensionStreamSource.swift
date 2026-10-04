@@ -1,7 +1,6 @@
 import Foundation
 import CoreMediaIO
 import CoreVideo
-import CoreText
 
 class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     private(set) var stream: CMIOExtensionStream!
@@ -11,8 +10,8 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     private var timer: DispatchSourceTimer?
     private var isStreaming = false
     private let formatDescription: CMVideoFormatDescription
-    private var pixelBufferPool: CVPixelBufferPool?
     private var latestPhoneFrame: CVPixelBuffer?
+    private var displayedPhoneFrames = 0
     private lazy var receiver = H264StreamReceiver { [weak self] frame in
         guard let self else { return }
         self.queue.async { self.latestPhoneFrame = frame }
@@ -31,23 +30,12 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
                                           clockType: clockType,
                                           source: self)
         
-        let poolAttributes: [String: Any] = [
-            kCVPixelBufferPoolMinimumBufferCountKey as String: 2
-        ]
-        let bufferAttributes: [String: Any] = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey as String: 1280,
-            kCVPixelBufferHeightKey as String: 720,
-            kCVPixelBufferIOSurfacePropertiesKey as String: [:]
-        ]
-        
-        CVPixelBufferPoolCreate(kCFAllocatorDefault, poolAttributes as CFDictionary, bufferAttributes as CFDictionary, &pixelBufferPool)
     }
     
     static func createFormatDescription() -> CMVideoFormatDescription {
         var formatDescription: CMVideoFormatDescription?
         CMVideoFormatDescriptionCreate(allocator: kCFAllocatorDefault,
-                                       codecType: kCVPixelFormatType_32BGRA,
+                                       codecType: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                                        width: 1280,
                                        height: 720,
                                        extensions: nil,
@@ -103,62 +91,11 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     }
     
     private func pushCurrentFrame() {
-        if let frame = latestPhoneFrame {
-            send(frame)
-            return
-        }
-        pushPlaceholderFrame()
+        guard let frame = latestPhoneFrame else { return }
+        send(frame, fromPhone: true)
     }
 
-    private func pushPlaceholderFrame() {
-        guard let pool = pixelBufferPool else { return }
-        
-        var pixelBuffer: CVPixelBuffer?
-        CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixelBuffer)
-        
-        guard let buffer = pixelBuffer else { return }
-        
-        // Keep the camera preview useful while the phone connects.
-        CVPixelBufferLockBaseAddress(buffer, [])
-        if let context = CGContext(data: CVPixelBufferGetBaseAddress(buffer),
-                                   width: CVPixelBufferGetWidth(buffer),
-                                   height: CVPixelBufferGetHeight(buffer),
-                                   bitsPerComponent: 8,
-                                   bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
-                                   space: CGColorSpaceCreateDeviceRGB(),
-                                   bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue) {
-            let bounds = CGRect(x: 0, y: 0, width: context.width, height: context.height)
-            context.setFillColor(CGColor(red: 0.08, green: 0.10, blue: 0.14, alpha: 1))
-            context.fill(bounds)
-            context.setFillColor(CGColor(red: 0.24, green: 0.62, blue: 0.96, alpha: 1))
-            context.fillEllipse(in: CGRect(x: bounds.midX - 24, y: bounds.midY + 70, width: 48, height: 48))
-
-            let text = "No phone connected"
-            let attributes: [NSAttributedString.Key: Any] = [
-                kCTFontAttributeName as NSAttributedString.Key: CTFontCreateWithName("HelveticaNeue-Medium" as CFString, 42, nil),
-                kCTForegroundColorAttributeName as NSAttributedString.Key: CGColor(gray: 1, alpha: 1)
-            ]
-            let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
-            let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-            context.textPosition = CGPoint(x: bounds.midX - lineWidth / 2, y: bounds.midY - 12)
-            CTLineDraw(line, context)
-
-            let instruction = "Connect an Android phone over USB to start video."
-            let detailAttributes: [NSAttributedString.Key: Any] = [
-                kCTFontAttributeName as NSAttributedString.Key: CTFontCreateWithName("HelveticaNeue" as CFString, 22, nil),
-                kCTForegroundColorAttributeName as NSAttributedString.Key: CGColor(gray: 0.72, alpha: 1)
-            ]
-            let detailLine = CTLineCreateWithAttributedString(NSAttributedString(string: instruction, attributes: detailAttributes))
-            let detailWidth = CGFloat(CTLineGetTypographicBounds(detailLine, nil, nil, nil))
-            context.textPosition = CGPoint(x: bounds.midX - detailWidth / 2, y: bounds.midY - 55)
-            CTLineDraw(detailLine, context)
-        }
-        CVPixelBufferUnlockBaseAddress(buffer, [])
-        
-        send(buffer)
-    }
-
-    private func send(_ buffer: CVPixelBuffer) {
+    private func send(_ buffer: CVPixelBuffer, fromPhone: Bool = false) {
         guard CVPixelBufferGetWidth(buffer) == 1280, CVPixelBufferGetHeight(buffer) == 720 else { return }
         var sampleBuffer: CMSampleBuffer?
         var timing = CMSampleTimingInfo(duration: CMTime(value: 1, timescale: 30),
@@ -173,6 +110,12 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
         
         if let sbuf = sampleBuffer {
             self.stream.send(sbuf, discontinuity: [], hostTimeInNanoseconds: UInt64(timing.presentationTimeStamp.seconds * 1_000_000_000))
+            if fromPhone {
+                displayedPhoneFrames += 1
+                if displayedPhoneFrames % 30 == 0 {
+                    print("LumenTiming: submitted phone frame \(displayedPhoneFrames) to CoreMediaIO at host time \(DispatchTime.now().uptimeNanoseconds)")
+                }
+            }
         }
     }
 }

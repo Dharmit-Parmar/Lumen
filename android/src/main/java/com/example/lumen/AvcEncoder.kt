@@ -1,6 +1,7 @@
 package com.example.lumen
 
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.os.Build
 import android.os.Bundle
@@ -10,6 +11,8 @@ import java.io.DataOutputStream
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 internal class AvcEncoder(
@@ -23,10 +26,19 @@ internal class AvcEncoder(
 
     @Volatile private var stopped = false
     private var drainThread: Thread? = null
+    private var writerThread: Thread? = null
+    private var output: DataOutputStream? = null
+    private val sendQueue = ArrayBlockingQueue<EncodedFrame>(2)
+    private var waitingForKeyframe = true
+    private val failureReported = AtomicBoolean(false)
+
+    private data class EncodedFrame(val type: Int, val timestampUs: Long, val payload: ByteArray)
 
     init {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfoCodecs.COLOR_FORMAT_SURFACE)
+            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+            setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
+            setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
             setInteger(MediaFormat.KEY_BIT_RATE, 4_000_000)
             setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
@@ -40,21 +52,22 @@ internal class AvcEncoder(
     }
 
     fun start(socket: Socket, rotation: Int, mirror: Boolean) {
+        output = DataOutputStream(socket.getOutputStream())
         drainThread = thread(name = "LumenAvcOutput") {
             try {
                 drain(socket, rotation, mirror)
             } catch (error: Exception) {
                 Log.e("Lumen", "AVC output drain failed", error)
-                if (!stopped) onFailure(error)
+                reportFailure(error)
             }
         }
     }
 
     private fun drain(socket: Socket, rotation: Int, mirror: Boolean) {
-        val output = DataOutputStream(socket.getOutputStream())
+        val output = output ?: throw IllegalStateException("Encoder output is unavailable")
         val info = MediaCodec.BufferInfo()
         var sentConfig = false
-        var sentKeyframe = false
+        var frameCount = 0
 
         while (!stopped) {
             when (val index = codec.dequeueOutputBuffer(info, 100_000)) {
@@ -67,9 +80,8 @@ internal class AvcEncoder(
                     writeConfig(output, sps, pps, rotation, mirror)
                     Log.i("Lumen", "Sent stream config")
                     sentConfig = true
-                    if (Build.VERSION.SDK_INT >= 19) {
-                        codec.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0) })
-                    }
+                    writerThread = thread(name = "LumenTcpWriter") { writeQueuedFrames(output) }
+                    requestKeyframe()
                 }
                 MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
                 else -> if (index >= 0) {
@@ -80,10 +92,22 @@ internal class AvcEncoder(
                             encoded.limit(info.offset + info.size)
                             val bytes = ByteArray(info.size)
                             encoded.get(bytes)
+                            if (++frameCount % 30 == 0) {
+                                Log.i("LumenTiming", "encode output PTS=${info.presentationTimeUs}us")
+                            }
                             val keyframe = info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0
-                            if (keyframe) sentKeyframe = true
-                            if (sentKeyframe) {
-                                writeMessage(output, if (keyframe) 2 else 3, info.presentationTimeUs, normalizeAnnexB(bytes))
+                            if (keyframe) {
+                                sendQueue.clear()
+                                waitingForKeyframe = false
+                                sendQueue.offer(EncodedFrame(2, info.presentationTimeUs, normalizeAnnexB(bytes)))
+                            } else if (!waitingForKeyframe) {
+                                val frame = EncodedFrame(3, info.presentationTimeUs, normalizeAnnexB(bytes))
+                                if (!sendQueue.offer(frame)) {
+                                    sendQueue.clear()
+                                    waitingForKeyframe = true
+                                    requestKeyframe()
+                                    Log.w("Lumen", "Socket fell behind; dropping until the next keyframe")
+                                }
                             }
                         }
                     } finally {
@@ -94,8 +118,41 @@ internal class AvcEncoder(
         }
     }
 
+    private fun writeQueuedFrames(output: DataOutputStream) {
+        var frameCount = 0
+        try {
+            while (!stopped) {
+                val frame = sendQueue.take()
+                val writeStarted = System.nanoTime()
+                writeMessage(output, frame.type, frame.timestampUs, frame.payload)
+                if (++frameCount % 30 == 0) {
+                    Log.i("LumenTiming", "TCP write took ${(System.nanoTime() - writeStarted) / 1_000}us; queue=${sendQueue.size}")
+                }
+            }
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } catch (error: Exception) {
+            Log.e("Lumen", "TCP frame writer failed", error)
+            reportFailure(error)
+        }
+    }
+
+    private fun requestKeyframe() {
+        if (Build.VERSION.SDK_INT >= 19) {
+            try {
+                codec.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0) })
+            } catch (error: Exception) {
+                Log.w("Lumen", "Could not request an IDR frame", error)
+            }
+        }
+    }
+
+    private fun reportFailure(error: Exception) {
+        if (!stopped && failureReported.compareAndSet(false, true)) onFailure(error)
+    }
+
     private fun writeConfig(output: DataOutputStream, sps: ByteArray, pps: ByteArray, rotation: Int, mirror: Boolean) {
-        require(sps.isNotEmpty() && pps.isNotEmpty() && sps.size <= 65535 && pps.size <= 65535)
+        require(sps.isNotEmpty() && pps.isNotEmpty() && 14 + sps.size + pps.size <= MAX_CONFIG_SIZE)
         val payload = ByteBuffer.allocate(14 + sps.size + pps.size).order(ByteOrder.BIG_ENDIAN)
         payload.put(1)
             .putShort(width.toShort())
@@ -109,6 +166,7 @@ internal class AvcEncoder(
     }
 
     private fun writeMessage(output: DataOutputStream, type: Int, timestampUs: Long, payload: ByteArray) {
+        require(type in 1..3 && payload.isNotEmpty() && payload.size <= MAX_PAYLOAD_SIZE)
         val header = ByteBuffer.allocate(16).order(ByteOrder.BIG_ENDIAN)
             .put(0x4c).put(0x55).put(1).putInt(payload.size).put(type.toByte()).putLong(timestampUs)
         output.write(header.array())
@@ -158,13 +216,16 @@ internal class AvcEncoder(
     fun stop() {
         if (stopped) return
         stopped = true
+        sendQueue.clear()
+        writerThread?.interrupt()
         try { codec.signalEndOfInputStream() } catch (_: Exception) { }
         try { codec.stop() } catch (_: Exception) { }
         try { codec.release() } catch (_: Exception) { }
         surface.release()
     }
 
-    private object MediaCodecInfoCodecs {
-        const val COLOR_FORMAT_SURFACE = 0x7F000789
+    private companion object {
+        const val MAX_PAYLOAD_SIZE = 8_388_608
+        const val MAX_CONFIG_SIZE = 65_536
     }
 }

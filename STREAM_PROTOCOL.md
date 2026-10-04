@@ -33,7 +33,7 @@ Config is always the first message on every connection. Its payload is:
 | PPS length | 2 | PPS NAL byte count |
 | PPS | variable | One raw PPS NAL, including its NAL header; no Annex-B start code |
 
-The fixed config fields total 12 bytes, excluding the SPS and PPS NAL bytes. Reject zero dimensions/FPS, unsupported rotation/mirror values, missing SPS/PPS, or a config payload longer than 65,536 bytes. Version 1 carries one SPS and one PPS.
+The fixed config fields total 14 bytes, including the two length fields and excluding the SPS and PPS NAL bytes. Reject zero dimensions/FPS, unsupported rotation/mirror values, missing SPS/PPS, or a config payload longer than 65,536 bytes. Version 1 carries one SPS and one PPS.
 
 ## Video messages (types 2 and 3)
 
