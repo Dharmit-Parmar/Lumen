@@ -20,7 +20,5 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Lumen needs access to test the camera.</string>
 </dict>
 </plist>

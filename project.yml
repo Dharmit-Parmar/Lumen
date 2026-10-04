@@ -12,6 +12,7 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.example.Lumen
       INFOPLIST_FILE: MacApp/Info.plist
+      CODE_SIGN_ENTITLEMENTS: MacApp/LumenApp.entitlements
     dependencies:
       - target: LumenCameraExtension
 
@@ -23,4 +24,5 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.example.Lumen.CameraExtension
       INFOPLIST_FILE: CameraExtension/Info.plist
+      CODE_SIGN_ENTITLEMENTS: CameraExtension/LumenCameraExtension.entitlements
       GENERATE_INFOPLIST_FILE: NO

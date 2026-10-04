@@ -1,9 +1,11 @@
 import Foundation
 import CoreMediaIO
 import CoreVideo
+import CoreText
 
 class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
-    let stream: CMIOExtensionStream
+    private(set) var stream: CMIOExtensionStream!
+    let formats: [CMIOExtensionStreamFormat]
     
     private let queue = DispatchQueue(label: "com.example.Lumen.videoqueue")
     private var timer: DispatchSourceTimer?
@@ -13,9 +15,16 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     
     init(localizedName: String, streamID: UUID, direction: CMIOExtensionStream.Direction, clockType: CMIOExtensionStream.ClockType, formatDescription: CMVideoFormatDescription) {
         self.formatDescription = formatDescription
-        self.stream = CMIOExtensionStream(localizedName: localizedName, streamID: streamID, direction: direction, clockType: clockType, source: nil)
+        self.formats = [CMIOExtensionStreamFormat(formatDescription: formatDescription,
+                                                  maxFrameDuration: CMTime(value: 1, timescale: 30),
+                                                  minFrameDuration: CMTime(value: 1, timescale: 30),
+                                                  validFrameDurations: nil)]
         super.init()
-        self.stream.source = self
+        self.stream = CMIOExtensionStream(localizedName: localizedName,
+                                          streamID: streamID,
+                                          direction: direction,
+                                          clockType: clockType,
+                                          source: self)
         
         let poolAttributes: [String: Any] = [
             kCVPixelBufferPoolMinimumBufferCountKey as String: 2
@@ -46,7 +55,14 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     }
     
     func streamProperties(forProperties properties: Set<CMIOExtensionProperty>) throws -> CMIOExtensionStreamProperties {
-        return CMIOExtensionStreamProperties(dictionary: [:])
+        let streamProperties = CMIOExtensionStreamProperties(dictionary: [:])
+        if properties.contains(.streamActiveFormatIndex) {
+            streamProperties.activeFormatIndex = 0
+        }
+        if properties.contains(.streamFrameDuration) {
+            streamProperties.frameDuration = CMTime(value: 1, timescale: 30)
+        }
+        return streamProperties
     }
     
     func setStreamProperties(_ streamProperties: CMIOExtensionStreamProperties) throws { }
@@ -55,6 +71,7 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     
     func startStream() throws {
         queue.async {
+            guard !self.isStreaming else { return }
             self.isStreaming = true
             self.startPushingFrames()
         }
@@ -85,15 +102,40 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
         
         guard let buffer = pixelBuffer else { return }
         
-        // Fill buffer with blue color (placeholder)
+        // Keep the stream useful before the Android connection is implemented.
         CVPixelBufferLockBaseAddress(buffer, [])
-        if let ptr = CVPixelBufferGetBaseAddress(buffer) {
-            let width = CVPixelBufferGetWidth(buffer)
-            let height = CVPixelBufferGetHeight(buffer)
-            let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
-            
-            // Draw a solid color (e.g. Blue: B=255, G=0, R=0, A=255)
-            memset_pattern4(ptr, [255, 0, 0, 255], bytesPerRow * height)
+        if let context = CGContext(data: CVPixelBufferGetBaseAddress(buffer),
+                                   width: CVPixelBufferGetWidth(buffer),
+                                   height: CVPixelBufferGetHeight(buffer),
+                                   bitsPerComponent: 8,
+                                   bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+                                   space: CGColorSpaceCreateDeviceRGB(),
+                                   bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue) {
+            let bounds = CGRect(x: 0, y: 0, width: context.width, height: context.height)
+            context.setFillColor(CGColor(red: 0.08, green: 0.10, blue: 0.14, alpha: 1))
+            context.fill(bounds)
+            context.setFillColor(CGColor(red: 0.24, green: 0.62, blue: 0.96, alpha: 1))
+            context.fillEllipse(in: CGRect(x: bounds.midX - 24, y: bounds.midY + 70, width: 48, height: 48))
+
+            let text = "No phone connected"
+            let attributes: [NSAttributedString.Key: Any] = [
+                kCTFontAttributeName as NSAttributedString.Key: CTFontCreateWithName("HelveticaNeue-Medium" as CFString, 42, nil),
+                kCTForegroundColorAttributeName as NSAttributedString.Key: CGColor(gray: 1, alpha: 1)
+            ]
+            let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
+            let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+            context.textPosition = CGPoint(x: bounds.midX - lineWidth / 2, y: bounds.midY - 12)
+            CTLineDraw(line, context)
+
+            let instruction = "Connect an Android phone over USB to start video."
+            let detailAttributes: [NSAttributedString.Key: Any] = [
+                kCTFontAttributeName as NSAttributedString.Key: CTFontCreateWithName("HelveticaNeue" as CFString, 22, nil),
+                kCTForegroundColorAttributeName as NSAttributedString.Key: CGColor(gray: 0.72, alpha: 1)
+            ]
+            let detailLine = CTLineCreateWithAttributedString(NSAttributedString(string: instruction, attributes: detailAttributes))
+            let detailWidth = CGFloat(CTLineGetTypographicBounds(detailLine, nil, nil, nil))
+            context.textPosition = CGPoint(x: bounds.midX - detailWidth / 2, y: bounds.midY - 55)
+            CTLineDraw(detailLine, context)
         }
         CVPixelBufferUnlockBaseAddress(buffer, [])
         
