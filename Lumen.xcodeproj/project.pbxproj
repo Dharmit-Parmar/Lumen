@@ -43,10 +43,12 @@
 		014BA7638D36AC09BA380F3C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		08B4560D038D862CBD560AFA /* ExtensionStreamSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionStreamSource.swift; sourceTree = "<group>"; };
 		0D6D6389DB96B747B769A714 /* LumenApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LumenApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		11FD475E627970286024285A /* LumenApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LumenApp.entitlements; sourceTree = "<group>"; };
 		2ED8E2E278DFEF898AEC8351 /* LumenCameraExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = LumenCameraExtension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C85003B9C445BD615FC51CB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		55A325820809B62B5C21FCE0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		5B396272A7CCBEBD947457BD /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		70AFF746D5F30A71486F6223 /* LumenCameraExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LumenCameraExtension.entitlements; sourceTree = "<group>"; };
 		A31E447B6FE01435E5E0A4D3 /* ExtensionProviderSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionProviderSource.swift; sourceTree = "<group>"; };
 		D495BA43ED7196473F83D8DD /* ExtensionDeviceSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionDeviceSource.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -77,6 +79,7 @@
 				A31E447B6FE01435E5E0A4D3 /* ExtensionProviderSource.swift */,
 				08B4560D038D862CBD560AFA /* ExtensionStreamSource.swift */,
 				55A325820809B62B5C21FCE0 /* Info.plist */,
+				70AFF746D5F30A71486F6223 /* LumenCameraExtension.entitlements */,
 				5B396272A7CCBEBD947457BD /* main.swift */,
 			);
 			path = CameraExtension;
@@ -87,6 +90,7 @@
 			children = (
 				014BA7638D36AC09BA380F3C /* AppDelegate.swift */,
 				4C85003B9C445BD615FC51CB /* Info.plist */,
+				11FD475E627970286024285A /* LumenApp.entitlements */,
 			);
 			path = MacApp;
 			sourceTree = "<group>";
@@ -250,6 +254,7 @@
 		3B5651F868D90BBDC05C12CE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CameraExtension/LumenCameraExtension.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = CameraExtension/Info.plist;
@@ -266,6 +271,7 @@
 		7CED009876A98AD9AE3067AF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CameraExtension/LumenCameraExtension.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = CameraExtension/Info.plist;
@@ -345,6 +351,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MacApp/LumenApp.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = MacApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -361,6 +368,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MacApp/LumenApp.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_FILE = MacApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

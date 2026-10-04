@@ -37,7 +37,7 @@ Every message:
 
 **Config payload:** codec id, width, height, fps, rotation (0/90/180/270), mirror flag, then SPS/PPS bytes.
 
-Use Annex-B or AVCC consistently on both sides and write down which one in the spec. Decide this before Phase 3.
+Use Annex-B access units, with raw SPS/PPS NAL units in the config message. The exact byte layout, bounds, and timestamp semantics are in [`STREAM_PROTOCOL.md`](STREAM_PROTOCOL.md). This is decided before Phase 3.
 
 ## 4. Behavior rules
 
@@ -140,7 +140,7 @@ scrcpy 2.2+ can already stream an Android camera over adb with H.264, lens selec
 3. Write the TCP server on port 5000 using the Section 3 framing.
 4. Implement the handshake: config, then forced keyframe, on each new client.
 5. Start the camera only when a client connects, stop when it leaves.
-6. Write a small Python script on the Mac that connects via `adb forward`, parses messages, and prints type, size, timestamp. Optionally dump to a file and play with ffplay.
+6. Use [`tools/inspect_stream.py`](tools/inspect_stream.py) to connect via `adb forward`, parse messages, and print type, size, timestamp. Optionally dump to a file and play with ffplay.
 
 **Done when:** the Mac script receives config and a steady stream of frames, and reconnecting works.
 

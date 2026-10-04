@@ -20,6 +20,8 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSSystemExtensionUsageDescription</key>
+	<string>Lumen provides a virtual camera for Mac apps.</string>
     <key>CMIOExtension</key>
     <dict>
         <key>CMIOExtensionMachServiceName</key>
