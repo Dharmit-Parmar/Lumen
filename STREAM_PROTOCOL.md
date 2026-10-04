@@ -14,7 +14,7 @@ All integer fields are unsigned and big-endian.
 | 7 | 1 | Type | `1` config, `2` H.264 keyframe access unit, `3` H.264 delta access unit |
 | 8 | 8 | Timestamp | Phone monotonic capture time in microseconds; `0` for config |
 
-Reject and close the connection on an unknown version/type, wrong magic, or payload length above the maximum. Do not attempt byte-by-byte resynchronization. A clean TCP reconnect starts a new stream.
+Reject and close the connection on an unknown version/type, wrong magic, empty payload, or payload length above the maximum. Do not attempt byte-by-byte resynchronization. A clean TCP reconnect starts a new stream.
 
 ## Config message (type 1)
 
