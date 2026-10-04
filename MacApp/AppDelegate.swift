@@ -28,6 +28,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         window.contentView = content
         window.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
 
         receiver = H264StreamReceiver { [weak self] buffer in
             guard let buffer = buffer else { return }
