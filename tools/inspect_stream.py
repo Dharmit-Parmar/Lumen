@@ -12,6 +12,7 @@ MAX_PAYLOAD = 8_388_608
 MAX_CONFIG = 65_536
 HEADER = struct.Struct(">2sBIBQ")
 CONFIG_FIXED = struct.Struct(">BHHHHB")
+ANNEX_B_START = b"\x00\x00\x00\x01"
 
 
 class ProtocolError(Exception):
@@ -30,6 +31,22 @@ def read_exact(sock, size, *, allow_clean_eof=False):
     return bytes(data)
 
 
+def annex_b_nal_types(payload):
+    if not payload.startswith(ANNEX_B_START):
+        raise ProtocolError("video access unit is not Annex-B with four-byte start codes")
+    units = payload[len(ANNEX_B_START):].split(ANNEX_B_START)
+    if any(not unit for unit in units):
+        raise ProtocolError("empty NAL unit in access unit")
+    return [unit[0] & 0x1F for unit in units]
+
+
+def port_number(value):
+    port = int(value)
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError("port must be between 1 and 65535")
+    return port
+
+
 def inspect(sock):
     configured = False
     saw_keyframe = False
@@ -38,6 +55,8 @@ def inspect(sock):
     while True:
         raw_header = read_exact(sock, HEADER.size, allow_clean_eof=True)
         if raw_header is None:
+            if not configured:
+                raise ProtocolError("connection ended before config")
             return
         magic, version, length, message_type, timestamp = HEADER.unpack(raw_header)
         if magic != MAGIC or version != VERSION:
@@ -67,18 +86,26 @@ def inspect(sock):
                 raise ProtocolError("invalid rotation or mirror flag")
             if not sps_length or not pps_length:
                 raise ProtocolError("config is missing SPS or PPS")
+            sps = payload[CONFIG_FIXED.size + 2:pps_length_offset]
+            pps = payload[pps_length_offset + 2:]
+            if sps[0] & 0x1F != 7 or pps[0] & 0x1F != 8:
+                raise ProtocolError("config parameter sets are not SPS/PPS NAL units")
             configured = True
             print(f"config {width}x{height} {fps}fps rotation={rotation} mirror={bool(mirror)} sps={sps_length}B pps={pps_length}B", flush=True)
             continue
 
         if not configured:
             raise ProtocolError("video received before config")
+        nals = annex_b_nal_types(payload)
         if message_type == 2:
-            if not payload.startswith(b"\x00\x00\x00\x01"):
-                raise ProtocolError("keyframe is not Annex-B")
+            if 5 not in nals:
+                raise ProtocolError("keyframe message contains no IDR NAL unit")
             saw_keyframe = True
-        elif not saw_keyframe:
-            raise ProtocolError("delta frame received before keyframe")
+        else:
+            if not saw_keyframe:
+                raise ProtocolError("delta frame received before keyframe")
+            if 5 in nals:
+                raise ProtocolError("IDR NAL unit must use the keyframe message type")
         if timestamp < last_timestamp:
             raise ProtocolError("capture timestamps moved backwards")
         last_timestamp = timestamp
@@ -89,11 +116,11 @@ def inspect(sock):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1", help="forwarded TCP host (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=5000, help="forwarded TCP port (default: 5000)")
+    parser.add_argument("--port", type=port_number, default=5000, help="forwarded TCP port (default: 5000)")
     args = parser.parse_args()
 
     try:
-        with socket.create_connection((args.host, args.port)) as sock:
+        with socket.create_connection((args.host, args.port), timeout=5) as sock:
             inspect(sock)
     except (OSError, ProtocolError) as error:
         print(f"stream error: {error}", file=sys.stderr)
