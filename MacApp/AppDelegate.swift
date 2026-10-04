@@ -1,18 +1,15 @@
 import Cocoa
 import SystemExtensions
 
-@main
 class AppDelegate: NSObject, NSApplicationDelegate {
-
     var window: NSWindow!
     private let imageView = NSImageView()
     private var receiver: H264StreamReceiver?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Create window
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 720),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false)
         window.center()
         window.setFrameAutosaveName("Main Window")
@@ -28,7 +25,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         window.contentView = content
         window.makeKeyAndOrderFront(nil)
-        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
         receiver = H264StreamReceiver { [weak self] buffer in
@@ -43,5 +39,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         receiver?.start()
     }
+}
 
+@main
+struct MainApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.regular)
+        app.run()
+    }
 }
