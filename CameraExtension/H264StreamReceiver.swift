@@ -225,33 +225,25 @@ final class H264StreamReceiver {
         print("Lumen stream: configured \(width)x\(height) at \(fps) fps, rotation \(rotation), mirror \(self.mirror)")
     }
 
-    private func decode(_ annexB: Data, timestampUs: UInt64) throws {
+    private func decode(_ avcc: Data, timestampUs: UInt64) throws {
         guard let decoder, let formatDescription else { throw streamError("decoder is not configured") }
         decodeStartedAt = DispatchTime.now().uptimeNanoseconds
-        let units = annexBUnits(annexB)
-        guard !units.isEmpty else { throw streamError("empty H.264 access unit") }
-        var sample = Data()
-        for unit in units {
-            guard unit.count <= Int(UInt32.max) else { throw streamError("NAL unit is too large") }
-            var length = UInt32(unit.count).bigEndian
-            withUnsafeBytes(of: &length) { sample.append(contentsOf: $0) }
-            sample.append(unit)
-        }
+        guard !avcc.isEmpty else { throw streamError("empty H.264 access unit") }
         var block: CMBlockBuffer?
         let blockStatus = CMBlockBufferCreateWithMemoryBlock(
             allocator: kCFAllocatorDefault,
             memoryBlock: nil,
-            blockLength: sample.count,
+            blockLength: avcc.count,
             blockAllocator: kCFAllocatorDefault,
             customBlockSource: nil,
             offsetToData: 0,
-            dataLength: sample.count,
+            dataLength: avcc.count,
             flags: 0,
             blockBufferOut: &block
         )
         guard blockStatus == noErr, let block else { throw streamError("cannot allocate compressed frame") }
-        let copyStatus = sample.withUnsafeBytes { bytes in
-            CMBlockBufferReplaceDataBytes(with: bytes.baseAddress!, blockBuffer: block, offsetIntoDestination: 0, dataLength: sample.count)
+        let copyStatus = avcc.withUnsafeBytes { bytes in
+            CMBlockBufferReplaceDataBytes(with: bytes.baseAddress!, blockBuffer: block, offsetIntoDestination: 0, dataLength: avcc.count)
         }
         guard copyStatus == noErr else { throw streamError("cannot copy compressed frame") }
 
@@ -260,7 +252,7 @@ final class H264StreamReceiver {
             presentationTimeStamp: CMTime(value: Int64(timestampUs), timescale: 1_000_000),
             decodeTimeStamp: .invalid
         )
-        var sampleSize = sample.count
+        var sampleSize = avcc.count
         var sampleBuffer: CMSampleBuffer?
         let sampleStatus = CMSampleBufferCreateReady(
             allocator: kCFAllocatorDefault,
@@ -366,25 +358,6 @@ final class H264StreamReceiver {
 
     private func integer(_ bytes: Data.SubSequence) -> UInt64 {
         bytes.reduce(0) { ($0 << 8) | UInt64($1) }
-    }
-
-    private func annexBUnits(_ data: Data) -> [Data] {
-        let bytes = [UInt8](data)
-        var markers: [(Int, Int)] = []
-        var index = 0
-        while index + 3 < bytes.count {
-            if bytes[index] == 0, bytes[index + 1] == 0, bytes[index + 2] == 0, bytes[index + 3] == 1 {
-                markers.append((index, 4)); index += 4
-            } else if bytes[index] == 0, bytes[index + 1] == 0, bytes[index + 2] == 1 {
-                markers.append((index, 3)); index += 3
-            } else { index += 1 }
-        }
-        return markers.indices.compactMap { position in
-            let start = markers[position].0 + markers[position].1
-            let end = position + 1 < markers.count ? markers[position + 1].0 : bytes.count
-            guard start < end else { return nil }
-            return Data(bytes[start..<end])
-        }
     }
 
     private func streamError(_ message: String) -> NSError {

@@ -99,9 +99,9 @@ internal class AvcEncoder(
                             if (keyframe) {
                                 sendQueue.clear()
                                 waitingForKeyframe = false
-                                sendQueue.offer(EncodedFrame(2, info.presentationTimeUs, normalizeAnnexB(bytes)))
+                                sendQueue.offer(EncodedFrame(2, info.presentationTimeUs, convertToAvcc(bytes)))
                             } else if (!waitingForKeyframe) {
-                                val frame = EncodedFrame(3, info.presentationTimeUs, normalizeAnnexB(bytes))
+                                val frame = EncodedFrame(3, info.presentationTimeUs, convertToAvcc(bytes))
                                 if (!sendQueue.offer(frame)) {
                                     sendQueue.clear()
                                     waitingForKeyframe = true
@@ -177,40 +177,47 @@ internal class AvcEncoder(
     private fun findNal(buffer: ByteBuffer, type: Int): ByteArray? {
         val data = ByteArray(buffer.remaining())
         buffer.duplicate().get(data)
-        return nalUnits(data).firstOrNull { it.isNotEmpty() && (it[0].toInt() and 0x1f) == type }
+        var start = 0
+        if (data.size >= 4 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 0.toByte() && data[3] == 1.toByte()) start = 4
+        else if (data.size >= 3 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 1.toByte()) start = 3
+        return if (start < data.size && (data[start].toInt() and 0x1f) == type) data.copyOfRange(start, data.size) else null
     }
 
-    private fun normalizeAnnexB(data: ByteArray): ByteArray {
-        val units = nalUnits(data)
-        if (units.isEmpty()) throw IllegalStateException("Encoder emitted an invalid H.264 access unit")
-        val size = units.sumOf { it.size + 4 }
-        return ByteBuffer.allocate(size).apply {
-            units.forEach { put(byteArrayOf(0, 0, 0, 1)); put(it) }
-        }.array()
-    }
-
-    private fun nalUnits(data: ByteArray): List<ByteArray> {
-        fun startCode(at: Int): Int = when {
-            at + 3 < data.size && data[at] == 0.toByte() && data[at + 1] == 0.toByte() && data[at + 2] == 0.toByte() && data[at + 3] == 1.toByte() -> 4
-            at + 2 < data.size && data[at] == 0.toByte() && data[at + 1] == 0.toByte() && data[at + 2] == 1.toByte() -> 3
-            else -> 0
-        }
+    private fun convertToAvcc(data: ByteArray): ByteArray {
         val starts = mutableListOf<Pair<Int, Int>>()
         var cursor = 0
         while (cursor < data.size) {
-            val codeSize = startCode(cursor)
+            val codeSize = when {
+                cursor + 3 < data.size && data[cursor] == 0.toByte() && data[cursor + 1] == 0.toByte() && data[cursor + 2] == 0.toByte() && data[cursor + 3] == 1.toByte() -> 4
+                cursor + 2 < data.size && data[cursor] == 0.toByte() && data[cursor + 1] == 0.toByte() && data[cursor + 2] == 1.toByte() -> 3
+                else -> 0
+            }
             if (codeSize > 0) {
                 starts += cursor to codeSize
                 cursor += codeSize
             } else cursor++
         }
-        if (starts.isEmpty()) return if (data.isEmpty()) emptyList() else listOf(data)
-        return starts.mapIndexedNotNull { index, (start, codeSize) ->
-            val from = start + codeSize
-            var to = if (index + 1 < starts.size) starts[index + 1].first else data.size
-            while (to > from && data[to - 1] == 0.toByte()) to--
-            if (to <= from) null else data.copyOfRange(from, to)
+        
+        if (starts.isEmpty()) {
+            val buf = ByteBuffer.allocate(data.size + 4).order(ByteOrder.BIG_ENDIAN)
+            buf.putInt(data.size)
+            buf.put(data)
+            return buf.array()
         }
+        
+        val totalSize = data.size - starts.sumOf { it.second } + (starts.size * 4)
+        val buf = ByteBuffer.allocate(totalSize).order(ByteOrder.BIG_ENDIAN)
+        for (i in starts.indices) {
+            val start = starts[i].first + starts[i].second
+            var to = if (i + 1 < starts.size) starts[i + 1].first else data.size
+            while (to > start && data[to - 1] == 0.toByte()) to--
+            val len = to - start
+            if (len > 0) {
+                buf.putInt(len)
+                buf.put(data, start, len)
+            }
+        }
+        return buf.array().copyOfRange(0, buf.position())
     }
 
     fun stop() {
