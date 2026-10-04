@@ -100,6 +100,6 @@ EOF
 # 5. Sign with ad-hoc signing
 echo "Codesigning..."
 codesign --force --sign - --entitlements ../CameraExtension/LumenCameraExtension.entitlements --timestamp=none Lumen.app/Contents/Library/SystemExtensions/com.example.lumen.extension.appex
-codesign --force --sign - --timestamp=none Lumen.app
+codesign --force --sign - --entitlements ../MacApp/Lumen.entitlements --timestamp=none Lumen.app
 
 echo "Done! The app bundle is at build_mac/Lumen.app"
