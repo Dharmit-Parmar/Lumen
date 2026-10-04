@@ -1,0 +1,104 @@
+{
+  "CameraExtension/ExtensionDeviceSource.swift": {
+    "mtime": 1791115811.1925242,
+    "seen": 1791119096.6240718,
+    "ast_hash": "dabc1e18484536839d0fed9eccafcf32",
+    "semantic_hash": "dabc1e18484536839d0fed9eccafcf32"
+  },
+  "CameraExtension/ExtensionProviderSource.swift": {
+    "mtime": 1791115811.1926208,
+    "seen": 1791119096.624074,
+    "ast_hash": "3f19c7a5f9feaa99aa1db8fcc9fa554d",
+    "semantic_hash": "3f19c7a5f9feaa99aa1db8fcc9fa554d"
+  },
+  "CameraExtension/ExtensionStreamSource.swift": {
+    "mtime": 1791118492.0572476,
+    "seen": 1791119096.624075,
+    "ast_hash": "12dfa63eafd8d62efd908c2127ccd45d",
+    "semantic_hash": "12dfa63eafd8d62efd908c2127ccd45d"
+  },
+  "CameraExtension/H264StreamReceiver.swift": {
+    "mtime": 1791118015.7581623,
+    "seen": 1791119096.624075,
+    "ast_hash": "439657b461783e91b345332539bbb732",
+    "semantic_hash": "439657b461783e91b345332539bbb732"
+  },
+  "CameraExtension/main.swift": {
+    "mtime": 1791115811.1832705,
+    "seen": 1791119096.6240761,
+    "ast_hash": "189cd05a52775937d3cfda4aabb09464",
+    "semantic_hash": "189cd05a52775937d3cfda4aabb09464"
+  },
+  "MacApp/AppDelegate.swift": {
+    "mtime": 1791115811.193653,
+    "seen": 1791119096.6240761,
+    "ast_hash": "9d315c6918d604a47d4d40c215287316",
+    "semantic_hash": "9d315c6918d604a47d4d40c215287316"
+  },
+  "android/build.gradle.kts": {
+    "mtime": 1791116874.920196,
+    "seen": 1791119096.624077,
+    "ast_hash": "ff15a747b1e202072a2e486955548cf1",
+    "semantic_hash": "ff15a747b1e202072a2e486955548cf1"
+  },
+  "android/src/main/java/com/example/lumen/AvcEncoder.kt": {
+    "mtime": 1791118188.1094818,
+    "seen": 1791119096.624077,
+    "ast_hash": "968f5006e43f2385d688c0f61b5df8b7",
+    "semantic_hash": "968f5006e43f2385d688c0f61b5df8b7"
+  },
+  "android/src/main/java/com/example/lumen/MainActivity.kt": {
+    "mtime": 1791118188.0864158,
+    "seen": 1791119096.624078,
+    "ast_hash": "abecf341bf67d994364a80b9259b8565",
+    "semantic_hash": "abecf341bf67d994364a80b9259b8565"
+  },
+  "build.gradle.kts": {
+    "mtime": 1791116755.3610628,
+    "seen": 1791119096.624078,
+    "ast_hash": "435c2552f106754fa755f59dcde713d4",
+    "semantic_hash": "435c2552f106754fa755f59dcde713d4"
+  },
+  "gradlew": {
+    "mtime": 1791116928.121325,
+    "seen": 1791119096.624079,
+    "ast_hash": "a43be8432bac3ffd05b3769aa42fe996",
+    "semantic_hash": "a43be8432bac3ffd05b3769aa42fe996"
+  },
+  "settings.gradle.kts": {
+    "mtime": 1791116755.311689,
+    "seen": 1791119096.624079,
+    "ast_hash": "f3235144d46d2c0219003e7a37dd27f5",
+    "semantic_hash": "f3235144d46d2c0219003e7a37dd27f5"
+  },
+  "tools/inspect_stream.swift": {
+    "mtime": 1791116335.0108435,
+    "seen": 1791119096.62408,
+    "ast_hash": "084e447634b52d04de28834180c3f237",
+    "semantic_hash": "084e447634b52d04de28834180c3f237"
+  },
+  ".planning/graphs/codebase_architecture.md": {
+    "mtime": 1791118731.1047747,
+    "seen": 1791119096.62408,
+    "ast_hash": "691ad499d17b2474b2f2ba246a582554",
+    "semantic_hash": "691ad499d17b2474b2f2ba246a582554"
+  },
+  "README.md": {
+    "mtime": 1791117823.2227764,
+    "seen": 1791119096.624081,
+    "ast_hash": "e8cb6182f0acd7377be1d1212a70f15b",
+    "semantic_hash": "e8cb6182f0acd7377be1d1212a70f15b"
+  },
+  "STREAM_PROTOCOL.md": {
+    "mtime": 1791118688.690445,
+    "seen": 1791119096.624081,
+    "ast_hash": "50af61a2b6672a5724a0a4f5f2e7b5e8",
+    "semantic_hash": "50af61a2b6672a5724a0a4f5f2e7b5e8"
+  },
+  "project.yml": {
+    "mtime": 1791116708.6982324,
+    "seen": 1791119096.6240819,
+    "ast_hash": "85fefd792964896931001a5eec98515b",
+    "semantic_hash": "85fefd792964896931001a5eec98515b"
+  }
+}
