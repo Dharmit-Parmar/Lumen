@@ -140,9 +140,9 @@ scrcpy 2.2+ can already stream an Android camera over adb with H.264, lens selec
 3. Write the TCP server on port 5000 using the Section 3 framing.
 4. Implement the handshake: config, then forced keyframe, on each new client.
 5. Start the camera only when a client connects, stop when it leaves.
-6. Use [`tools/inspect_stream.py`](tools/inspect_stream.py) to connect via `adb forward`, parse messages, and print type, size, timestamp. Optionally dump to a file and play with ffplay.
+6. Use the Swift command-line tool [`tools/inspect_stream.swift`](tools/inspect_stream.swift) to connect via `adb forward`, parse messages, and print type, size, timestamp. Optionally dump to a file and play with ffplay.
 
-**Done when:** the Mac script receives config and a steady stream of frames, and reconnecting works.
+**Done when:** the Swift inspector receives config and a steady stream of frames, and reconnecting works.
 
 ### Phase 4: Mac receive, decode, display
 
@@ -187,6 +187,6 @@ scrcpy 2.2+ can already stream an Android camera over adb with H.264, lens selec
 
 1. Phase 0 and 0.5 first, in one sitting. These decide whether the project is viable.
 2. Phase 1 next, since it proves the Mac side end to end.
-3. Phases 2-3 together (Android side), then test with the Python script.
+3. Phases 2-3 together (Android side), then inspect the stream with the Swift tool.
 4. Phase 4 to connect both sides.
 5. Phases 5-7 for quality and reliability.

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00ADC704F24F7B5A0621B976 /* LumenCameraExtension.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = 2ED8E2E278DFEF898AEC8351 /* LumenCameraExtension.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2420DFEAD6A3D9EBF55F9599 /* ExtensionStreamSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B4560D038D862CBD560AFA /* ExtensionStreamSource.swift */; };
+		24AA61F1A9A74DB4AF874B13 /* H264StreamReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AA61F1A9A74DB4AF874B12 /* H264StreamReceiver.swift */; };
 		4A7A9C3B4DF43DEB7C4C94C7 /* ExtensionDeviceSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = D495BA43ED7196473F83D8DD /* ExtensionDeviceSource.swift */; };
 		730C9D62DEF0E574AF9A854A /* ExtensionProviderSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31E447B6FE01435E5E0A4D3 /* ExtensionProviderSource.swift */; };
 		AEFE249E09968A01D1C2BB5D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014BA7638D36AC09BA380F3C /* AppDelegate.swift */; };
@@ -42,6 +43,7 @@
 /* Begin PBXFileReference section */
 		014BA7638D36AC09BA380F3C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		08B4560D038D862CBD560AFA /* ExtensionStreamSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionStreamSource.swift; sourceTree = "<group>"; };
+		24AA61F1A9A74DB4AF874B12 /* H264StreamReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264StreamReceiver.swift; sourceTree = "<group>"; };
 		0D6D6389DB96B747B769A714 /* LumenApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LumenApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		11FD475E627970286024285A /* LumenApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LumenApp.entitlements; sourceTree = "<group>"; };
 		2ED8E2E278DFEF898AEC8351 /* LumenCameraExtension.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = LumenCameraExtension.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -78,6 +80,7 @@
 				D495BA43ED7196473F83D8DD /* ExtensionDeviceSource.swift */,
 				A31E447B6FE01435E5E0A4D3 /* ExtensionProviderSource.swift */,
 				08B4560D038D862CBD560AFA /* ExtensionStreamSource.swift */,
+				24AA61F1A9A74DB4AF874B12 /* H264StreamReceiver.swift */,
 				55A325820809B62B5C21FCE0 /* Info.plist */,
 				70AFF746D5F30A71486F6223 /* LumenCameraExtension.entitlements */,
 				5B396272A7CCBEBD947457BD /* main.swift */,
@@ -173,6 +176,7 @@
 				4A7A9C3B4DF43DEB7C4C94C7 /* ExtensionDeviceSource.swift in Sources */,
 				730C9D62DEF0E574AF9A854A /* ExtensionProviderSource.swift in Sources */,
 				2420DFEAD6A3D9EBF55F9599 /* ExtensionStreamSource.swift in Sources */,
+				24AA61F1A9A74DB4AF874B13 /* H264StreamReceiver.swift in Sources */,
 				B3B301F0857C025EABF43CC5 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

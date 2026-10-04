@@ -12,6 +12,11 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
     private var isStreaming = false
     private let formatDescription: CMVideoFormatDescription
     private var pixelBufferPool: CVPixelBufferPool?
+    private var latestPhoneFrame: CVPixelBuffer?
+    private lazy var receiver = H264StreamReceiver { [weak self] frame in
+        guard let self else { return }
+        self.queue.async { self.latestPhoneFrame = frame }
+    }
     
     init(localizedName: String, streamID: UUID, direction: CMIOExtensionStream.Direction, clockType: CMIOExtensionStream.ClockType, formatDescription: CMVideoFormatDescription) {
         self.formatDescription = formatDescription
@@ -73,6 +78,7 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
         queue.async {
             guard !self.isStreaming else { return }
             self.isStreaming = true
+            self.receiver.start()
             self.startPushingFrames()
         }
     }
@@ -82,6 +88,8 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
             self.isStreaming = false
             self.timer?.cancel()
             self.timer = nil
+            self.receiver.stop()
+            self.latestPhoneFrame = nil
         }
     }
     
@@ -89,11 +97,19 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
         timer = DispatchSource.makeTimerSource(queue: queue)
         timer?.schedule(deadline: .now(), repeating: 1.0 / 30.0) // 30 FPS
         timer?.setEventHandler { [weak self] in
-            self?.pushPlaceholderFrame()
+            self?.pushCurrentFrame()
         }
         timer?.resume()
     }
     
+    private func pushCurrentFrame() {
+        if let frame = latestPhoneFrame {
+            send(frame)
+            return
+        }
+        pushPlaceholderFrame()
+    }
+
     private func pushPlaceholderFrame() {
         guard let pool = pixelBufferPool else { return }
         
@@ -102,7 +118,7 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
         
         guard let buffer = pixelBuffer else { return }
         
-        // Keep the stream useful before the Android connection is implemented.
+        // Keep the camera preview useful while the phone connects.
         CVPixelBufferLockBaseAddress(buffer, [])
         if let context = CGContext(data: CVPixelBufferGetBaseAddress(buffer),
                                    width: CVPixelBufferGetWidth(buffer),
@@ -139,6 +155,11 @@ class ExtensionStreamSource: NSObject, CMIOExtensionStreamSource {
         }
         CVPixelBufferUnlockBaseAddress(buffer, [])
         
+        send(buffer)
+    }
+
+    private func send(_ buffer: CVPixelBuffer) {
+        guard CVPixelBufferGetWidth(buffer) == 1280, CVPixelBufferGetHeight(buffer) == 720 else { return }
         var sampleBuffer: CMSampleBuffer?
         var timing = CMSampleTimingInfo(duration: CMTime(value: 1, timescale: 30),
                                         presentationTimeStamp: CMClockGetTime(CMClockGetHostTimeClock()),
