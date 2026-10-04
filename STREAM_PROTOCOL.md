@@ -23,11 +23,11 @@ Config is always the first message on every connection. Its payload is:
 | Field | Size | Meaning |
 | --- | ---: | --- |
 | Codec | 1 | `1` = H.264 / AVC |
-| Width | 2 | Encoded frame width in pixels |
-| Height | 2 | Encoded frame height in pixels |
+| Width | 2 | Encoded frame width in pixels, before rotation |
+| Height | 2 | Encoded frame height in pixels, before rotation |
 | FPS | 2 | Nominal integer frame rate |
-| Rotation | 2 | Clockwise display rotation: `0`, `90`, `180`, or `270` degrees |
-| Mirror | 1 | `0` = no mirror, `1` = mirrored horizontally |
+| Rotation | 2 | Clockwise degrees to rotate the encoded image to make it upright: `0`, `90`, `180`, or `270` |
+| Mirror | 1 | `0` = no mirror, `1` = mirror horizontally after rotation |
 | SPS length | 2 | SPS NAL byte count |
 | SPS | variable | One raw SPS NAL, including its NAL header; no Annex-B start code |
 | PPS length | 2 | PPS NAL byte count |

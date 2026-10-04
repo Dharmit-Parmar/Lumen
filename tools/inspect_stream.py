@@ -88,7 +88,7 @@ def inspect(sock):
                 raise ProtocolError("config is missing SPS or PPS")
             sps = payload[CONFIG_FIXED.size + 2:pps_length_offset]
             pps = payload[pps_length_offset + 2:]
-            if sps[0] & 0x1F != 7 or pps[0] & 0x1F != 8:
+            if (sps[0] & 0x1F) != 7 or (pps[0] & 0x1F) != 8:
                 raise ProtocolError("config parameter sets are not SPS/PPS NAL units")
             configured = True
             print(f"config {width}x{height} {fps}fps rotation={rotation} mirror={bool(mirror)} sps={sps_length}B pps={pps_length}B", flush=True)
@@ -106,6 +106,8 @@ def inspect(sock):
                 raise ProtocolError("delta frame received before keyframe")
             if 5 in nals:
                 raise ProtocolError("IDR NAL unit must use the keyframe message type")
+            if 1 not in nals:
+                raise ProtocolError("delta message contains no coded slice NAL unit")
         if timestamp < last_timestamp:
             raise ProtocolError("capture timestamps moved backwards")
         last_timestamp = timestamp
