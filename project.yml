@@ -1,0 +1,26 @@
+name: Lumen
+options:
+  bundleIdPrefix: com.example
+  developmentRegion: en
+
+targets:
+  LumenApp:
+    type: application
+    platform: macOS
+    deploymentTarget: "12.3"
+    sources: [MacApp]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.example.Lumen
+      INFOPLIST_FILE: MacApp/Info.plist
+    dependencies:
+      - target: LumenCameraExtension
+
+  LumenCameraExtension:
+    type: system-extension
+    platform: macOS
+    deploymentTarget: "12.3"
+    sources: [CameraExtension]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.example.Lumen.CameraExtension
+      INFOPLIST_FILE: CameraExtension/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
